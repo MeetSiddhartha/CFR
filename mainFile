@@ -1,0 +1,60 @@
+import random
+
+class Game:
+    def __init__(self):
+        self.players = 3
+        self.actions = 2
+        self.regretSum = [[0 for _ in range(self.actions)] for _ in range(self.players)]
+        self.strategy = [[0 for _ in range(self.actions)] for _ in range(self.players)]
+        self.strategySum = [[0 for _ in range(self.actions)] for _ in range(self.players)]
+
+    def getStrategy(self, player, realizationWeight):
+        normalizingSum = 0
+        strategy = [0 for _ in range(self.actions)]
+        for a in range(self.actions):
+            if self.regretSum[player][a] > 0:
+                strategy[a] = self.regretSum[player][a]
+            else:
+                strategy[a] = 0
+            normalizingSum += strategy[a]
+        for a in range(self.actions):
+            if normalizingSum > 0:
+                strategy[a] /= normalizingSum
+            else:
+                strategy[a] = 1.0 / self.actions
+            self.strategySum[player][a] += realizationWeight * strategy[a]
+        return strategy
+
+    def getAverageStrategy(self, player):
+        normalizingSum = 0
+        avgStrategy = [0 for _ in range(self.actions)]
+        for a in range(self.actions):
+            normalizingSum += self.strategySum[player][a]
+        for a in range(self.actions):
+            if normalizingSum > 0:
+                avgStrategy[a] = self.strategySum[player][a] / normalizingSum
+            else:
+                avgStrategy[a] = 1.0 / self.actions
+        return avgStrategy
+
+    def train(self, iterations):
+        realizationWeight = 1.0
+        for i in range(iterations):
+            mixedStrategy = [self.getStrategy(player, realizationWeight) for player in range(self.players)]
+            actions = [random.choices(range(self.actions), mixedStrategy[player])[0] for player in range(self.players)]
+            util = self.getUtility(actions)
+            for player in range(self.players):
+                for a in range(self.actions):
+                    regret = util[player] - util[a]
+                    self.regretSum[player][a] += regret * realizationWeight if regret > 0 else 0
+            realizationWeight *= (i + 1) / (iterations * self.players)
+
+    def getUtility(self, actions):
+        return [sum(actions) - a for a in actions]
+
+if __name__ == "__main__":
+    game = Game()
+    game.train(100000)
+    print("Average strategies:")
+    for p in range(game.players):
+        print(game.getAverageStrategy(p))
